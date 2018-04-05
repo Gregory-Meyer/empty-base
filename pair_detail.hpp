@@ -7,7 +7,7 @@
 namespace gregjm {
 namespace detail {
 
-template <typename T>
+template <typename T, std::size_t I = 0>
 struct Wrapper {
     T data;
 
@@ -19,23 +19,25 @@ struct Wrapper {
     constexpr explicit Wrapper(Args &&...args)
     noexcept(std::is_nothrow_constructible_v<T, Args...>)
     : data(std::forward<Args>(args)...) { }
+
+    template <typename U,
+              typename = std::enable_if_t<
+                  std::is_constructible_v<T, std::initializer_list<U>>
+              >>
+    constexpr explicit Wrapper(const std::initializer_list<U> init)
+    noexcept(std::is_nothrow_constructible_v<T, std::initializer_list<U>>)
+    : data{ init } { }
+
+    constexpr inline T& as_base() noexcept {
+        return data;
+    }
+
+    constexpr inline const T& as_base() const noexcept {
+        return data;
+    }
 };
 
-template <typename T>
-struct AltWrapper {
-    T data;
-
-    constexpr AltWrapper()
-    noexcept(std::is_nothrow_default_constructible_v<T>) = default;
-
-    template <typename ...Args,
-              typename = std::enable_if_t<std::is_constructible_v<T, Args...>>>
-    constexpr explicit AltWrapper(Args &&...args)
-    noexcept(std::is_nothrow_constructible_v<T, Args...>)
-    : data(std::forward<Args>(args)...) { }
-};
-
-template <typename T>
+template <typename T, std::size_t I = 0>
 struct Alias : private T {
     constexpr Alias()
     noexcept(std::is_nothrow_default_constructible_v<T>) = default;
@@ -45,6 +47,14 @@ struct Alias : private T {
     constexpr explicit Alias(Args &&...args)
     noexcept(std::is_nothrow_constructible_v<T, Args...>)
     : T(std::forward<Args>(args)...) { }
+
+    template <typename U,
+              typename = std::enable_if_t<
+                  std::is_constructible_v<T, std::initializer_list<U>>
+              >>
+    constexpr explicit Alias(const std::initializer_list<U> init)
+    noexcept(std::is_nothrow_constructible_v<T, std::initializer_list<U>>)
+    : T{ init } { }
 
     constexpr inline T& as_base() noexcept {
         return dynamic_cast<T&>(*this);
@@ -100,6 +110,36 @@ struct IsLessThanComparable<
 template <typename T, typename U = T>
 static constexpr inline bool is_less_than_comparable_v =
     IsLessThanComparable<T, U>::value;
+
+template <typename T, std::size_t I = 0>
+struct WrapIfNotInheritable {
+    using TypeT = std::conditional_t<is_inheritable_v<T>, Alias<T, I>,
+                                     Wrapper<T, I>>;
+};
+
+template <typename T, std::size_t I = 0>
+using WrapIfNotInheritableT = typename WrapIfNotInheritable<T, I>::TypeT;
+
+template <typename T>
+struct Unwrap {
+    using TypeT = T;
+};
+
+template <typename T>
+struct Unwrap<std::reference_wrapper<T>> {
+    using TypeT = T;
+};
+
+template <typename T>
+using UnwrapT = typename Unwrap<T>::TypeT;
+
+template <typename T>
+struct UnwrapDecay {
+    using TypeT = UnwrapT<std::decay_t<T>>;
+};
+
+template <typename T>
+using UnwrapDecayT = typename UnwrapDecay<T>::TypeT;
 
 } // namespace detail
 } // namespace gregjm

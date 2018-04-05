@@ -13,17 +13,11 @@ namespace gregjm {
 
 template <typename First, typename Second>
 class Pair
-: private std::conditional_t<detail::is_inheritable_v<First>,
-                             First, detail::Wrapper<First>>,
-  private std::conditional_t<detail::is_inheritable_v<Second>,
-                             detail::Alias<Second>,
-                             detail::AltWrapper<Second>> {
+: private detail::WrapIfNotInheritableT<First, 0>,
+  private detail::WrapIfNotInheritableT<Second, 1> {
 private:
-    using FirstT = std::conditional_t<detail::is_inheritable_v<First>,
-                                      First, detail::Wrapper<First>>;
-    using SecondT = std::conditional_t<detail::is_inheritable_v<Second>,
-                                       detail::Alias<Second>,
-                                       detail::AltWrapper<Second>>;
+    using FirstT = detail::WrapIfNotInheritableT<First, 0>;
+    using SecondT = detail::WrapIfNotInheritableT<Second, 1>;
 
 public:
     using first_type = First;
@@ -81,35 +75,19 @@ public:
             std::make_index_sequence<std::tuple_size_v<SecondTuple>>{ } } { }
 
     constexpr inline First& first() noexcept {
-        if constexpr (!detail::is_inheritable_v<First>) {
-            return dynamic_cast<detail::Wrapper<First>&>(*this).data;
-        } else {
-            return dynamic_cast<First&>(*this);
-        }
+        return dynamic_cast<FirstT&>(*this).as_base();
     }
 
     constexpr inline const First& first() const noexcept {
-        if constexpr (!detail::is_inheritable_v<First>) {
-            return dynamic_cast<const detail::Wrapper<First>&>(*this).data;
-        } else {
-            return dynamic_cast<const First&>(*this);
-        }
+        return dynamic_cast<const FirstT&>(*this).as_base();
     }
 
     constexpr inline Second& second() noexcept {
-        if constexpr (!detail::is_inheritable_v<Second>) {
-            return dynamic_cast<detail::AltWrapper<Second>&>(*this).data;
-        } else {
-            return dynamic_cast<detail::Alias<Second>&>(*this).as_base();
-        }
+        return dynamic_cast<SecondT&>(*this).as_base();
     }
 
     constexpr inline const Second& second() const noexcept {
-        if constexpr (!detail::is_inheritable_v<Second>) {
-            return dynamic_cast<const detail::AltWrapper<Second>&>(*this).data;
-        } else {
-            return dynamic_cast<const detail::Alias<Second>&>(*this).as_base();
-        }
+        return dynamic_cast<const SecondT&>(*this).as_base();
     }
 
     constexpr void swap(Pair &other)
@@ -244,6 +222,17 @@ constexpr inline bool operator>=(
     const Pair<First1, Second1> &lhs, const Pair<First2, Second2> &rhs
 ) noexcept(noexcept(lhs < rhs)) {
     return !(lhs < rhs);
+}
+
+template <typename First, typename Second>
+constexpr gregjm::Pair<detail::UnwrapDecayT<First>,
+                       detail::UnwrapDecayT<Second>>
+make_pair(First &&first, Second &&second) {
+    using FirstT = detail::UnwrapDecayT<First>;
+    using SecondT = detail::UnwrapDecayT<Second>;
+    using PairT = gregjm::Pair<FirstT, SecondT>;
+
+    return PairT{ std::forward<First>(first), std::forward<Second>(second) };
 }
 
 } // namespace gregjm
