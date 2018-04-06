@@ -28,9 +28,10 @@ public:
              && std::is_nothrow_default_constructible_v<Second>) = default;
 
     template <typename T, typename U,
-              typename =
-                  std::enable_if_t<std::is_constructible_v<First, T>
-                                   && std::is_constructible_v<Second, U>>>
+              typename = std::enable_if_t<
+                  std::is_constructible_v<First, const T&>
+                  && std::is_constructible_v<Second, const U&>
+              >>
     explicit constexpr Pair(const Pair<T, U> &other)
     noexcept(std::is_nothrow_constructible_v<First, const T&>
              && std::is_nothrow_constructible_v<Second, const U&>)
@@ -38,8 +39,8 @@ public:
 
     template <typename T, typename U,
               typename =
-                  std::enable_if_t<std::is_constructible_v<First, T>
-                                   && std::is_constructible_v<Second, U>>>
+                  std::enable_if_t<std::is_constructible_v<First, T&&>
+                                   && std::is_constructible_v<Second, U&&>>>
     explicit constexpr Pair(Pair<T, U> &&other)
     noexcept(std::is_nothrow_constructible_v<First, T&&>
              && std::is_nothrow_constructible_v<Second, U&&>)
@@ -73,6 +74,36 @@ public:
             std::forward<SecondTuple>(second_args),
             std::make_index_sequence<std::tuple_size_v<FirstTuple>>{ },
             std::make_index_sequence<std::tuple_size_v<SecondTuple>>{ } } { }
+
+    template <typename T, typename U,
+              typename =
+                  std::enable_if_t<std::is_assignable_v<First, const T&>
+                                   && std::is_assignable_v<Second, const U&>>>
+    constexpr Pair& operator=(const Pair<T, U> &other)
+    noexcept(std::is_nothrow_assignable_v<First, const T&>
+             && std::is_nothrow_assignable_v<Second, const U&>) {
+        if (this != &other) {
+            first() = other.first();
+            second() = other.second();
+        }
+
+        return *this;
+    }
+
+    template <typename T, typename U,
+              typename =
+                  std::enable_if_t<std::is_assignable_v<First, T&&>
+                                   && std::is_assignable_v<Second, U&&>>>
+    constexpr Pair& operator=(Pair<T, U> &&other)
+    noexcept(std::is_nothrow_assignable_v<First, T&&>
+             && std::is_nothrow_assignable_v<Second, U&&>) {
+        if (this != &other) {
+            first() = std::move(other.first());
+            second() = std::move(other.second());
+        }
+
+        return *this;
+    }
 
     constexpr inline First& first() noexcept {
         return dynamic_cast<FirstT&>(*this).as_base();
