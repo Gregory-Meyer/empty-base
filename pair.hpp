@@ -35,7 +35,7 @@ public:
     explicit constexpr Pair(const Pair<T, U> &other)
     noexcept(std::is_nothrow_constructible_v<First, const T&>
              && std::is_nothrow_constructible_v<Second, const U&>)
-    : FirstT{ other.first() }, SecondT{ other.second() } { }
+    : FirstT(other.first()), SecondT(other.second()) { }
 
     template <typename T, typename U,
               typename =
@@ -44,8 +44,8 @@ public:
     explicit constexpr Pair(Pair<T, U> &&other)
     noexcept(std::is_nothrow_constructible_v<First, T&&>
              && std::is_nothrow_constructible_v<Second, U&&>)
-    : FirstT{ std::move(other.first()) },
-      SecondT{ std::move(other.second()) } { }
+    : FirstT(std::move(other.first())),
+      SecondT(std::move(other.second())) { }
 
     template <typename F, typename S,
               typename = std::enable_if_t<
